@@ -15,41 +15,45 @@ def query(cypher, params=None):
 
 def seed():
     g = graph()
-    g.query("""
-    MERGE (:Subject {name:'Physics'})
-    MERGE (:Subject {name:'Mathematics'})
-    MERGE (:Subject {name:'Computer Science'})
-    MERGE (:Concept {name:'Thermodynamics', difficulty:'Intermediate', description:'Heat, work, temperature, and energy transformations.'})
-    MERGE (:Concept {name:'First Law of Thermodynamics', difficulty:'Intermediate', description:'Energy is conserved in a thermodynamic process.'})
-    MERGE (:Concept {name:'Basic Algebra', difficulty:'Beginner', description:'Variables, equations, and algebraic manipulation.'})
-    MERGE (:Concept {name:'Functions', difficulty:'Beginner', description:'Inputs, outputs, and mappings between sets.'})
-    MERGE (:Concept {name:'Cypher Basics', difficulty:'Beginner', description:'Querying graph patterns with Cypher.'})
-    MERGE (:Concept {name:'Graph Databases', difficulty:'Intermediate', description:'Representing entities and relationships as a property graph.'})
-    MERGE (:Resource {title:'Thermodynamics reference', kind:'Reference', url:'https://en.wikipedia.org/wiki/Thermodynamics'})
-    MERGE (:Resource {title:'Algebra reference', kind:'Reference', url:'https://en.wikipedia.org/wiki/Algebra'})
-    MERGE (:Resource {title:'FalkorDB documentation', kind:'Documentation', url:'https://docs.falkordb.com/'})
-    """)
-    g.query("""
-    MATCH (s:Subject {name:'Physics'}),(c:Concept {name:'Thermodynamics'}) MERGE (s)-[:COVERS]->(c);
-    MATCH (c:Concept {name:'Thermodynamics'}),(p:Concept {name:'First Law of Thermodynamics'}) MERGE (c)-[:INCLUDES]->(p);
-    MATCH (s:Subject {name:'Mathematics'}),(c:Concept {name:'Basic Algebra'}) MERGE (s)-[:COVERS]->(c);
-    MATCH (s:Subject {name:'Mathematics'}),(c:Concept {name:'Functions'}) MERGE (s)-[:COVERS]->(c);
-    MATCH (a:Concept {name:'Basic Algebra'}),(b:Concept {name:'Functions'}) MERGE (a)-[:PREREQUISITE_FOR]->(b);
-    MATCH (s:Subject {name:'Computer Science'}),(c:Concept {name:'Graph Databases'}) MERGE (s)-[:COVERS]->(c);
-    MATCH (a:Concept {name:'Cypher Basics'}),(b:Concept {name:'Graph Databases'}) MERGE (a)-[:PREREQUISITE_FOR]->(b);
-    MATCH (c:Concept {name:'Thermodynamics'}),(r:Resource {title:'Thermodynamics reference'}) MERGE (c)-[:HAS_RESOURCE]->(r);
-    MATCH (c:Concept {name:'Basic Algebra'}),(r:Resource {title:'Algebra reference'}) MERGE (c)-[:HAS_RESOURCE]->(r);
-    MATCH (c:Concept {name:'Graph Databases'}),(r:Resource {title:'FalkorDB documentation'}) MERGE (c)-[:HAS_RESOURCE]->(r);
-    """)
+    # One Cypher statement per query call for compatibility.
+    statements = [
+        "MERGE (:Subject {name:'Physics'})",
+        "MERGE (:Subject {name:'Mathematics'})",
+        "MERGE (:Subject {name:'Computer Science'})",
+        "MERGE (:Concept {name:'Thermodynamics', difficulty:'Intermediate', description:'Heat, work, temperature, and energy transformations.'})",
+        "MERGE (:Concept {name:'First Law of Thermodynamics', difficulty:'Intermediate', description:'Energy is conserved in a thermodynamic process.'})",
+        "MERGE (:Concept {name:'Basic Algebra', difficulty:'Beginner', description:'Variables, equations, and algebraic manipulation.'})",
+        "MERGE (:Concept {name:'Functions', difficulty:'Beginner', description:'Inputs, outputs, and mappings between sets.'})",
+        "MERGE (:Concept {name:'Cypher Basics', difficulty:'Beginner', description:'Querying graph patterns with Cypher.'})",
+        "MERGE (:Concept {name:'Graph Databases', difficulty:'Intermediate', description:'Representing entities and relationships as a property graph.'})",
+        "MERGE (:Resource {title:'Thermodynamics reference', kind:'Reference', url:'https://en.wikipedia.org/wiki/Thermodynamics'})",
+        "MERGE (:Resource {title:'Algebra reference', kind:'Reference', url:'https://en.wikipedia.org/wiki/Algebra'})",
+        "MERGE (:Resource {title:'FalkorDB documentation', kind:'Documentation', url:'https://docs.falkordb.com/'})",
+        "MATCH (s:Subject {name:'Physics'}),(c:Concept {name:'Thermodynamics'}) MERGE (s)-[:COVERS]->(c)",
+        "MATCH (c:Concept {name:'Thermodynamics'}),(p:Concept {name:'First Law of Thermodynamics'}) MERGE (c)-[:INCLUDES]->(p)",
+        "MATCH (s:Subject {name:'Mathematics'}),(c:Concept {name:'Basic Algebra'}) MERGE (s)-[:COVERS]->(c)",
+        "MATCH (s:Subject {name:'Mathematics'}),(c:Concept {name:'Functions'}) MERGE (s)-[:COVERS]->(c)",
+        "MATCH (a:Concept {name:'Basic Algebra'}),(b:Concept {name:'Functions'}) MERGE (a)-[:PREREQUISITE_FOR]->(b)",
+        "MATCH (s:Subject {name:'Computer Science'}),(c:Concept {name:'Graph Databases'}) MERGE (s)-[:COVERS]->(c)",
+        "MATCH (a:Concept {name:'Cypher Basics'}),(b:Concept {name:'Graph Databases'}) MERGE (a)-[:PREREQUISITE_FOR]->(b)",
+        "MATCH (c:Concept {name:'Thermodynamics'}),(r:Resource {title:'Thermodynamics reference'}) MERGE (c)-[:HAS_RESOURCE]->(r)",
+        "MATCH (c:Concept {name:'Basic Algebra'}),(r:Resource {title:'Algebra reference'}) MERGE (c)-[:HAS_RESOURCE]->(r)",
+        "MATCH (c:Concept {name:'Graph Databases'}),(r:Resource {title:'FalkorDB documentation'}) MERGE (c)-[:HAS_RESOURCE]->(r)"
+    ]
+    for statement in statements:
+        g.query(statement)
+
 @app.get("/")
 def home():
     return render_template("index.html")
+
 @app.get("/api/health")
 def health():
     try:
         return jsonify(ok=True, graph=GRAPH_NAME, nodes=query("MATCH (n) RETURN count(n)")[0][0])
     except Exception as e:
         return jsonify(ok=False, error=str(e)), 503
+
 @app.post("/api/seed")
 def seed_api():
     try:
@@ -57,6 +61,7 @@ def seed_api():
         return jsonify(ok=True, message="Sample study graph loaded.")
     except Exception as e:
         return jsonify(error=str(e)), 503
+
 @app.get("/api/stats")
 def stats():
     try:
@@ -66,6 +71,7 @@ def stats():
                        concepts=query("MATCH (c:Concept) RETURN count(c)")[0][0])
     except Exception as e:
         return jsonify(error=str(e)), 503
+
 @app.get("/api/search")
 def search():
     term = request.args.get("q", "").strip()
@@ -84,6 +90,7 @@ def search():
                                  "resources":[x for x in (r[4] or []) if x and x.get("title")]} for r in data])
     except Exception as e:
         return jsonify(error=str(e)), 503
+
 @app.get("/api/path")
 def path():
     start, end = request.args.get("from","").strip(), request.args.get("to","").strip()
@@ -99,5 +106,6 @@ def path():
                        message="No prerequisite path found." if not result else "Path found.")
     except Exception as e:
         return jsonify(error=str(e)), 503
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT","5000")), debug=False)
